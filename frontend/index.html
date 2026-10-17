@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloud Lab 05</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 760px; margin: 40px auto; padding: 0 18px; }
+    input { width: 70%; padding: 10px; } button { padding: 10px; }
+    li { margin: 8px 0; }
+  </style>
+</head>
+<body>
+  <h1>Cloud Lab 05 — Message Board</h1>
+  <p>Frontend served by Nginx in a container.</p>
+  <form id="form">
+    <input id="message" maxlength="200" required placeholder="Type a message">
+    <button>Save message</button>
+  </form>
+  <p id="status">Waiting for backend connection…</p>
+  <ul id="messages"></ul>
+  <script>
+    const statusBox = document.querySelector('#status');
+    const list = document.querySelector('#messages');
+    async function loadMessages() {
+      try {
+        const r = await fetch('/api/messages');
+        if (!r.ok) throw new Error('API status ' + r.status);
+        const data = await r.json();
+        list.replaceChildren();
+        data.forEach(m => {
+          const li = document.createElement('li');
+          li.textContent = m.message + ' — ' + new Date(m.created_at).toLocaleString();
+          list.appendChild(li);
+        });
+        statusBox.textContent = 'Frontend → backend → database: connected';
+      } catch (e) { statusBox.textContent = 'API unavailable. Inspect container logs.'; }
+    }
+    document.querySelector('#form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const input = document.querySelector('#message');
+      try {
+        const r = await fetch('/api/messages', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({message: input.value})
+        });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error || 'Request failed');
+        input.value = ''; await loadMessages();
+      } catch (err) { statusBox.textContent = err.message; }
+    });
+    loadMessages();
+  </script>
+</body>
+</html>
